@@ -1,0 +1,5 @@
+{
+  "name": "White Tax Return App",
+  "description": "A Japanese White Tax Return (Shiroiro Shinkoku) application for sole proprietors to manage income, expenses, and generate tax documents.",
+  "requestFramePermissions": []
+}
