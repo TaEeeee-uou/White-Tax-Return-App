@@ -80,8 +80,8 @@ export const IncomeInput = () => {
                         <button
                           onClick={() => setExpandedRowId(expandedRowId === item.id ? null : item.id)}
                           className={`p-1.5 rounded transition-colors text-xs font-bold ${item.receiptDriveFileId
-                              ? 'text-green-600 bg-green-50 hover:bg-green-100'
-                              : 'text-primary bg-blue-50 hover:bg-blue-100'
+                            ? 'text-green-600 bg-green-50 hover:bg-green-100'
+                            : 'text-primary bg-blue-50 hover:bg-blue-100'
                             }`}
                           title="領収書・請求書を添付"
                         >
@@ -100,6 +100,7 @@ export const IncomeInput = () => {
                     <tr className="bg-blue-50/50">
                       <td colSpan={6} className="px-4 py-4 border-t border-blue-100">
                         <GoogleDriveUploader
+                          documentType="invoice"
                           onUploadSuccess={(fileId, webViewLink) => {
                             setIncomes(incomes.map(inc =>
                               inc.id === item.id

@@ -9,18 +9,24 @@ declare global {
 }
 
 interface GoogleDriveUploaderProps {
+    documentType: 'receipt' | 'invoice'; // 'receipt'=領収書, 'invoice'=請求書
+    year?: string; // 例: "2026", 指定がなければ現在の年を使用
     onUploadSuccess: (fileId: string, webViewLink: string) => void;
 }
 
-export const GoogleDriveUploader: React.FC<GoogleDriveUploaderProps> = ({ onUploadSuccess }) => {
+export const GoogleDriveUploader: React.FC<GoogleDriveUploaderProps> = ({ documentType, year, onUploadSuccess }) => {
     const [token, setToken] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [statusMessage, setStatusMessage] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
+
+    // デフォルト年度の決定（現在の日付から）
+    const targetYear = year || new Date().getFullYear().toString();
+    const typeFolderName = documentType === 'receipt' ? '領収書(経費)' : '請求書・売上等(収入)';
 
     useEffect(() => {
         // 認証情報の初期化
         const initClient = () => {
-            /* global google */
             if (window.google?.accounts?.oauth2) {
                 const client = window.google.accounts.oauth2.initTokenClient({
                     client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || 'dummy-client-id-for-preview',
@@ -38,7 +44,6 @@ export const GoogleDriveUploader: React.FC<GoogleDriveUploaderProps> = ({ onUplo
             }
         };
 
-        // スクリプトの読み込み完了を待機
         const checkGoogleApi = setInterval(() => {
             if (window.google) {
                 clearInterval(checkGoogleApi);
@@ -57,6 +62,50 @@ export const GoogleDriveUploader: React.FC<GoogleDriveUploaderProps> = ({ onUplo
         }
     };
 
+    // 指定した名前のフォルダを検索、なければ作成するヘルパー関数
+    const getOrCreateFolder = async (folderName: string, accessToken: string, parentId?: string): Promise<string> => {
+        // 1. 検索
+        let query = `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+        if (parentId) {
+            query += ` and '${parentId}' in parents`;
+        }
+
+        const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`, {
+            headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        const searchData = await searchRes.json();
+
+        if (searchData.error) throw new Error(searchData.error.message);
+
+        // 存在すればそのIDを返す
+        if (searchData.files && searchData.files.length > 0) {
+            return searchData.files[0].id;
+        }
+
+        // 2. なければ作成
+        const createMetadata: any = {
+            name: folderName,
+            mimeType: 'application/vnd.google-apps.folder'
+        };
+        if (parentId) {
+            createMetadata.parents = [parentId];
+        }
+
+        const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(createMetadata)
+        });
+        const createData = await createRes.json();
+
+        if (createData.error) throw new Error(createData.error.message);
+
+        return createData.id;
+    };
+
     const uploadFile = async (file: File) => {
         if (!token) {
             setError('先にGoogleで認証してください');
@@ -66,17 +115,33 @@ export const GoogleDriveUploader: React.FC<GoogleDriveUploaderProps> = ({ onUplo
         setIsUploading(true);
         setError(null);
 
-        const metadata = {
-            name: file.name,
-            mimeType: file.type,
-        };
-
-        const form = new FormData();
-        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-        form.append('file', file);
-
         try {
-            const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+            // --- 1. フォルダ階層の準備 ---
+            setStatusMessage('保存先フォルダを確認中...');
+
+            // Tier 1: アプリ用ルートフォルダ
+            const rootFolderId = await getOrCreateFolder('White Tax Return App', token);
+            // Tier 2: 年度フォルダ (例: "2026年提出分")
+            const yearFolderId = await getOrCreateFolder(`${targetYear}年提出分`, token, rootFolderId);
+            // Tier 3: 種類別フォルダ (例: "領収書(経費)" or "請求書・売上等(収入)")
+            const targetFolderId = await getOrCreateFolder(typeFolderName, token, yearFolderId);
+
+            // --- 2. ファイル本体のアップロード ---
+            setStatusMessage('ファイルを送信中...');
+
+            // ファイル名を手動でユニークにする（タイムスタンプ追加）
+            const safeFileName = `${new Date().getTime()}_${file.name}`;
+            const metadata = {
+                name: safeFileName,
+                mimeType: file.type,
+                parents: [targetFolderId] // 作成または取得した最下層フォルダに入れる
+            };
+
+            const form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+            form.append('file', file);
+
+            const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${token}`
@@ -84,15 +149,17 @@ export const GoogleDriveUploader: React.FC<GoogleDriveUploaderProps> = ({ onUplo
                 body: form
             });
 
-            const data = await response.json();
+            const uploadData = await uploadRes.json();
 
-            if (!response.ok) {
-                throw new Error(data.error?.message || 'アップロードに失敗しました');
+            if (!uploadRes.ok) {
+                throw new Error(uploadData.error?.message || 'アップロードに失敗しました');
             }
 
-            onUploadSuccess(data.id, data.webViewLink);
+            setStatusMessage('');
+            onUploadSuccess(uploadData.id, uploadData.webViewLink);
         } catch (err: any) {
-            setError(err.message || 'アップロードエラー');
+            setStatusMessage('');
+            setError(err.message || 'アップロード中エラーが発生しました');
         } finally {
             setIsUploading(false);
         }
@@ -106,14 +173,16 @@ export const GoogleDriveUploader: React.FC<GoogleDriveUploaderProps> = ({ onUplo
 
     return (
         <div className="bg-white border text-sm border-gray-200 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <h3 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">
                 <UploadCloud size={18} />
-                領収書・請求書を添付 (Google Drive)
+                ファイル添付 (Google Drive)
             </h3>
+            <p className="text-xs text-gray-500 mb-3">
+                保存先: 📁White Tax Return App / {targetYear}年提出分 / {typeFolderName}
+            </p>
 
             {!token ? (
                 <div className="text-center bg-gray-50 rounded-lg p-4 border border-blue-100">
-                    <p className="text-gray-500 mb-3">Google Driveに画像やPDFを保存します</p>
                     <button
                         type="button"
                         onClick={handleAuthClick}
@@ -126,13 +195,14 @@ export const GoogleDriveUploader: React.FC<GoogleDriveUploaderProps> = ({ onUplo
                             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                         </svg>
-                        Google アカウントで認証
+                        Google アカウントで認証する
                     </button>
+                    <p className="text-xs text-gray-400 mt-2">※初回のみ権限の許可が必要です</p>
                 </div>
             ) : (
                 <div className="space-y-3">
                     <div className="flex items-center gap-2 text-green-600 bg-green-50 p-2 rounded text-xs font-medium border border-green-200">
-                        <Check size={14} /> Drive認証済み
+                        <Check size={14} /> Drive認証済み (安全に保存されます)
                     </div>
 
                     <label className="block w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-primary hover:bg-blue-50 transition-colors">
@@ -140,7 +210,7 @@ export const GoogleDriveUploader: React.FC<GoogleDriveUploaderProps> = ({ onUplo
                             {isUploading ? (
                                 <div className="flex flex-col items-center gap-2">
                                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                                    <span>アップロード中...</span>
+                                    <span className="font-bold text-primary">{statusMessage}</span>
                                 </div>
                             ) : (
                                 <>
