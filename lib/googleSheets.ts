@@ -148,6 +148,56 @@ export async function getSheetData(accessToken: string, spreadsheetId: string, s
 }
 
 /**
+ * 複数のシートのデータを一括で取得し、JSON配列のオブジェクトに変換して返す
+ * これにより 429 Quota Exceeded (Read requests per minute per user) エラーを防ぐ
+ */
+export async function batchGetSheetData(accessToken: string, spreadsheetId: string, sheetNames: string[]): Promise<Record<string, any[]>> {
+    const rangesQuery = sheetNames.map(name => `ranges=${encodeURIComponent(name + '!A1:Z')}`).join('&');
+    const response = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${rangesQuery}`,
+        {
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+            },
+        }
+    );
+
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(`Failed to batch fetch sheet data: ${JSON.stringify(data)}`);
+    }
+
+    const result: Record<string, any[]> = {};
+
+    data.valueRanges.forEach((valueRange: any, index: number) => {
+        const sheetName = sheetNames[index];
+        const rows = valueRange.values || [];
+
+        if (rows.length <= 1) {
+            result[sheetName] = []; // ヘッダーのみ、または空
+            return;
+        }
+
+        const headers = rows[0] as string[];
+        const dataRows = rows.slice(1);
+
+        result[sheetName] = dataRows.map((row: any[]) => {
+            const obj: any = {};
+            headers.forEach((header, colIndex) => {
+                let value = row[colIndex] || '';
+                if (header === 'amount') {
+                    value = Number(value);
+                }
+                obj[header] = value;
+            });
+            return obj;
+        });
+    });
+
+    return result;
+}
+
+/**
  * 指定のシート（タブ）のデータを全件書き換える (Sync)
  * 既存のデータをクリアし、新しく渡された配列で上書きする
  */

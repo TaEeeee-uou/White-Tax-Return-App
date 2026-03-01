@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Layout, BackButton } from '../components/Layout';
 import { CheckCircle, Loader2, Database } from 'lucide-react';
 import { useUser } from '../UserContext';
-import { findOrCreateDatabase, getSheetData, syncSheetData } from '../lib/googleSheets';
+import { findOrCreateDatabase, getSheetData, syncSheetData, batchGetSheetData } from '../lib/googleSheets';
 
 export const Settings = () => {
   const { profile, updateProfile, googleToken, setGoogleToken, spreadsheetId, setSpreadsheetId, setIncomes, setExpenses } = useUser();
@@ -84,10 +84,13 @@ export const Settings = () => {
         const dbId = await findOrCreateDatabase(googleToken);
         setSpreadsheetId(dbId);
 
-        // 2. 各シートからデータを取得
-        const profileData = await getSheetData(googleToken, dbId, 'Profile');
-        const incomesData = await getSheetData(googleToken, dbId, 'Incomes');
-        const expensesData = await getSheetData(googleToken, dbId, 'Expenses');
+        // 2. batchGetで3つのシート（タブ）のデータを1回のAPIリクエストで一括取得する
+        // これにより「Read requests per minute per user: 60」の制限に引っかかるのを防ぐ
+        const allData = await batchGetSheetData(googleToken, dbId, ['Profile', 'Incomes', 'Expenses']);
+
+        const profileData = allData['Profile'] || [];
+        const incomesData = allData['Incomes'] || [];
+        const expensesData = allData['Expenses'] || [];
 
         // 3. 取得したデータが存在すれば Context を上書き
         if (profileData.length > 0) {
