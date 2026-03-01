@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Layout, BackButton } from '../components/Layout';
 import { Plus, Trash2 } from 'lucide-react';
-import { MOCK_INCOME, INCOME_TYPES } from '../constants';
+import { INCOME_TYPES } from '../constants';
 import { IncomeEntry } from '../types';
 import { GoogleDriveUploader } from '../components/GoogleDriveUploader';
+import { useUser } from '../UserContext';
 
 export const IncomeInput = () => {
-  const [incomes, setIncomes] = useState<IncomeEntry[]>(MOCK_INCOME);
+  const { incomes, setIncomes } = useUser();
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   const handleAddRow = () => {
@@ -24,6 +25,12 @@ export const IncomeInput = () => {
   const handleDeleteRow = (id: string) => {
     setIncomes(incomes.filter(item => item.id !== id));
   };
+
+  const handleUpdateItem = (id: string, field: keyof IncomeEntry, value: any) => {
+    setIncomes(incomes.map(item => item.id === id ? { ...item, [field]: value } : item));
+  };
+
+  const totalIncome = incomes.reduce((sum, item) => sum + (item.amount || 0), 0);
 
   return (
     <Layout variant="header">
@@ -54,11 +61,17 @@ export const IncomeInput = () => {
                 <React.Fragment key={item.id}>
                   <tr className={`group hover:bg-gray-50 ${expandedRowId === item.id ? 'bg-blue-50/20' : ''}`}>
                     <td className="px-2 py-1.5 align-top">
-                      <input type="text" defaultValue={item.date} placeholder="YYYY/MM/DD" className="w-full h-9 border-gray-300 rounded focus:ring-primary focus:border-primary text-gray-900 placeholder:text-gray-400 text-sm" />
+                      <input
+                        type="date"
+                        value={item.date}
+                        onChange={e => handleUpdateItem(item.id, 'date', e.target.value)}
+                        className="w-full h-9 border-gray-300 rounded focus:ring-primary focus:border-primary text-gray-900 text-sm"
+                      />
                     </td>
                     <td className="px-2 py-1.5 align-top">
                       <select
-                        defaultValue={item.type}
+                        value={item.type}
+                        onChange={e => handleUpdateItem(item.id, 'type', e.target.value)}
                         className="w-full h-9 border-gray-300 rounded focus:ring-primary focus:border-primary text-gray-900 text-sm"
                       >
                         {INCOME_TYPES.map(type => (
@@ -67,13 +80,31 @@ export const IncomeInput = () => {
                       </select>
                     </td>
                     <td className="px-2 py-1.5 align-top">
-                      <input type="text" defaultValue={item.description} placeholder="例：売上（A社）" className="w-full h-9 border-gray-300 rounded focus:ring-primary focus:border-primary text-gray-900 placeholder:text-gray-400 text-sm" />
+                      <input
+                        type="text"
+                        value={item.description}
+                        onChange={e => handleUpdateItem(item.id, 'description', e.target.value)}
+                        placeholder="例：売上（A社）"
+                        className="w-full h-9 border-gray-300 rounded focus:ring-primary focus:border-primary text-gray-900 placeholder:text-gray-400 text-sm"
+                      />
                     </td>
                     <td className="px-2 py-1.5 align-top">
-                      <input type="text" defaultValue={item.amount > 0 ? item.amount.toLocaleString() : ''} placeholder="金額を入力" className="w-full h-9 border-gray-300 rounded focus:ring-primary focus:border-primary text-right text-gray-900 placeholder:text-gray-400 text-sm" />
+                      <input
+                        type="number"
+                        value={item.amount || ''}
+                        onChange={e => handleUpdateItem(item.id, 'amount', Number(e.target.value))}
+                        placeholder="金額を入力"
+                        className="w-full h-9 border-gray-300 rounded focus:ring-primary focus:border-primary text-right text-gray-900 placeholder:text-gray-400 text-sm"
+                      />
                     </td>
                     <td className="px-2 py-1.5 align-top">
-                      <input type="text" defaultValue={item.memo} placeholder="例：4月分" className="w-full h-9 border-gray-300 rounded focus:ring-primary focus:border-primary text-gray-900 placeholder:text-gray-400 text-sm" />
+                      <input
+                        type="text"
+                        value={item.memo}
+                        onChange={e => handleUpdateItem(item.id, 'memo', e.target.value)}
+                        placeholder="例：4月分"
+                        className="w-full h-9 border-gray-300 rounded focus:ring-primary focus:border-primary text-gray-900 placeholder:text-gray-400 text-sm"
+                      />
                     </td>
                     <td className="px-2 py-1.5 align-top text-center">
                       <div className="flex items-center justify-center gap-1 mt-0.5">
@@ -141,9 +172,9 @@ export const IncomeInput = () => {
         <hr className="border-gray-200" />
 
         {/* Summary */}
-        <div className="bg-gray-50 p-6 rounded-lg flex justify-between items-center">
+        <div className="bg-gray-50 p-6 rounded-lg flex justify-between items-center border-l-4 border-primary">
           <span className="font-bold text-gray-600">収入合計</span>
-          <span className="font-bold text-2xl text-gray-900">¥200,000</span>
+          <span className="font-bold text-3xl text-gray-900 tracking-tight">¥ {totalIncome.toLocaleString()}</span>
         </div>
 
       </div>

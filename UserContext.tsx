@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { IncomeEntry, ExpenseEntry } from './types';
+import { MOCK_INCOME, MOCK_EXPENSES } from './constants';
 
 export interface UserProfile {
   name: string;
@@ -16,6 +18,10 @@ interface UserContextType {
   updateProfile: (newProfile: Partial<UserProfile>) => void;
   googleToken: string | null;
   setGoogleToken: (token: string | null) => void;
+  incomes: IncomeEntry[];
+  setIncomes: React.Dispatch<React.SetStateAction<IncomeEntry[]>>;
+  expenses: ExpenseEntry[];
+  setExpenses: React.Dispatch<React.SetStateAction<ExpenseEntry[]>>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -34,12 +40,25 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   const [googleToken, setGoogleToken] = useState<string | null>(null);
 
+  // アプリケーション全体で使い回す収支データ（初期値にモックを使用）
+  const [incomes, setIncomes] = useState<IncomeEntry[]>(MOCK_INCOME);
+  const [expenses, setExpenses] = useState<ExpenseEntry[]>(MOCK_EXPENSES);
+
   const updateProfile = (newProfile: Partial<UserProfile>) => {
     setProfile((prev) => ({ ...prev, ...newProfile }));
   };
 
   return (
-    <UserContext.Provider value={{ profile, updateProfile, googleToken, setGoogleToken }}>
+    <UserContext.Provider value={{
+      profile,
+      updateProfile,
+      googleToken,
+      setGoogleToken,
+      incomes,
+      setIncomes,
+      expenses,
+      setExpenses
+    }}>
       {children}
     </UserContext.Provider>
   );

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Layout, BackButton } from '../components/Layout';
 import { Plus, Trash2 } from 'lucide-react';
-import { MOCK_EXPENSES, MOCK_CATEGORIES } from '../constants';
+import { MOCK_CATEGORIES } from '../constants';
 import { ExpenseEntry } from '../types';
 import { GoogleDriveUploader } from '../components/GoogleDriveUploader';
+import { useUser } from '../UserContext';
 
 export const ExpenseInput = () => {
-  const [expenses, setExpenses] = useState<ExpenseEntry[]>(MOCK_EXPENSES);
+  const { expenses, setExpenses } = useUser();
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   const handleAddRow = () => {
@@ -25,6 +26,12 @@ export const ExpenseInput = () => {
     setExpenses(expenses.filter(item => item.id !== id));
   };
 
+  const handleUpdateItem = (id: string, field: keyof ExpenseEntry, value: any) => {
+    setExpenses(expenses.map(item => item.id === id ? { ...item, [field]: value } : item));
+  };
+
+  const totalExpense = expenses.reduce((sum, item) => sum + (item.amount || 0), 0);
+
   return (
     <Layout variant="header">
       <div className="space-y-6">
@@ -32,9 +39,10 @@ export const ExpenseInput = () => {
         {/* Page Heading */}
         <div>
           <BackButton />
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center mb-2">
             <h1 className="text-3xl font-black text-gray-900">支出の入力</h1>
           </div>
+          <p className="text-gray-500">事業に必要な様々な経費を入力してください。</p>
         </div>
 
         {/* Table Container */}
@@ -55,17 +63,35 @@ export const ExpenseInput = () => {
                 <React.Fragment key={item.id}>
                   <tr className={`hover:bg-gray-50 ${expandedRowId === item.id ? 'bg-blue-50/20' : ''}`}>
                     <td className="px-2 py-1.5 align-top">
-                      <input type="date" defaultValue={item.date} className="w-full h-9 border-gray-300 rounded focus:ring-primary focus:border-primary text-gray-900 text-sm" />
+                      <input
+                        type="date"
+                        value={item.date}
+                        onChange={e => handleUpdateItem(item.id, 'date', e.target.value)}
+                        className="w-full h-9 border-gray-300 rounded focus:ring-primary focus:border-primary text-gray-900 text-sm"
+                      />
                     </td>
                     <td className="px-2 py-1.5 align-top">
-                      <input type="text" defaultValue={item.description} placeholder="例: 事務用品" className="w-full h-9 border-gray-300 rounded focus:ring-primary focus:border-primary text-gray-900 text-sm" />
+                      <input
+                        type="text"
+                        value={item.description}
+                        onChange={e => handleUpdateItem(item.id, 'description', e.target.value)}
+                        placeholder="例: 事務用品"
+                        className="w-full h-9 border-gray-300 rounded focus:ring-primary focus:border-primary text-gray-900 text-sm"
+                      />
                     </td>
                     <td className="px-2 py-1.5 align-top">
-                      <input type="text" defaultValue={item.amount > 0 ? item.amount.toLocaleString() : ''} placeholder="例: 1500" className="w-full h-9 border-gray-300 rounded focus:ring-primary focus:border-primary text-right text-gray-900 text-sm" />
+                      <input
+                        type="number"
+                        value={item.amount || ''}
+                        onChange={e => handleUpdateItem(item.id, 'amount', Number(e.target.value))}
+                        placeholder="例: 1500"
+                        className="w-full h-9 border-gray-300 rounded focus:ring-primary focus:border-primary text-right text-gray-900 text-sm"
+                      />
                     </td>
                     <td className="px-2 py-1.5 align-top">
                       <select
-                        defaultValue={item.category}
+                        value={item.category}
+                        onChange={e => handleUpdateItem(item.id, 'category', e.target.value)}
                         className="w-full h-9 border-gray-300 rounded focus:ring-primary focus:border-primary text-gray-900 text-sm"
                       >
                         {MOCK_CATEGORIES.map(category => (
@@ -74,7 +100,13 @@ export const ExpenseInput = () => {
                       </select>
                     </td>
                     <td className="px-2 py-1.5 align-top">
-                      <input type="text" defaultValue={item.memo} placeholder="例: クライアント訪問" className="w-full h-9 border-gray-300 rounded focus:ring-primary focus:border-primary text-gray-900 text-sm" />
+                      <input
+                        type="text"
+                        value={item.memo}
+                        onChange={e => handleUpdateItem(item.id, 'memo', e.target.value)}
+                        placeholder="例: クライアント訪問"
+                        className="w-full h-9 border-gray-300 rounded focus:ring-primary focus:border-primary text-gray-900 text-sm"
+                      />
                     </td>
                     <td className="px-2 py-1.5 align-top text-center">
                       <div className="flex items-center justify-center gap-1 mt-0.5">
@@ -129,15 +161,19 @@ export const ExpenseInput = () => {
         </div>
 
         {/* Footer Actions */}
-        <div className="flex justify-between items-center">
+        <hr className="border-gray-200" />
+        <div className="bg-gray-50 p-6 rounded-lg flex justify-between items-center border-l-4 border-red-500">
           <button
             onClick={handleAddRow}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-800 font-bold rounded-lg hover:bg-gray-300 transition-colors"
+            className="flex items-center gap-2 px-6 py-2 bg-gray-200 text-gray-800 font-bold rounded-lg hover:bg-gray-300 transition-colors shadow-sm"
           >
             <Plus size={20} />
             行を追加
           </button>
-          <h2 className="text-2xl font-bold text-gray-900">支出合計: ¥ 7,880</h2>
+          <div className="flex items-center gap-4">
+            <span className="font-bold text-gray-600">支出合計</span>
+            <span className="font-bold text-3xl text-gray-900 tracking-tight">¥ {totalExpense.toLocaleString()}</span>
+          </div>
         </div>
 
       </div>
