@@ -5,6 +5,8 @@ export interface IncomeEntry {
   description: string;
   amount: number;
   memo: string;
+  receiptUrl?: string;
+  receiptDriveFileId?: string;
 }
 
 export interface ExpenseEntry {
@@ -14,6 +16,8 @@ export interface ExpenseEntry {
   amount: number;
   category: string;
   memo: string;
+  receiptUrl?: string;
+  receiptDriveFileId?: string;
 }
 
 export interface Category {
