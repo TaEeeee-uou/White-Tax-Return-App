@@ -5,29 +5,55 @@ import { MOCK_CATEGORIES } from '../constants';
 import { ExpenseEntry } from '../types';
 import { GoogleDriveUploader } from '../components/GoogleDriveUploader';
 import { useUser } from '../UserContext';
+import { syncSheetData } from '../lib/googleSheets';
 
 export const ExpenseInput = () => {
-  const { expenses, setExpenses } = useUser();
+  const { expenses, setExpenses, googleToken, spreadsheetId } = useUser();
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const syncToDb = async (newExpenses: ExpenseEntry[]) => {
+    if (!googleToken || !spreadsheetId) return;
+    setIsSaving(true);
+    try {
+      await syncSheetData(
+        googleToken,
+        spreadsheetId,
+        'Expenses',
+        ['id', 'date', 'description', 'amount', 'category', 'memo', 'receiptUrl', 'receiptDriveFileId'],
+        newExpenses
+      );
+    } catch (err) {
+      console.error("Failed to sync expenses to DB:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleAddRow = () => {
     const newId = Date.now().toString();
-    setExpenses([...expenses, {
+    const newExpenses = [...expenses, {
       id: newId,
       date: '',
       description: '',
       amount: 0,
       category: '消耗品費',
       memo: ''
-    }]);
+    }];
+    setExpenses(newExpenses);
+    syncToDb(newExpenses);
   };
 
   const handleDeleteRow = (id: string) => {
-    setExpenses(expenses.filter(item => item.id !== id));
+    const newExpenses = expenses.filter(item => item.id !== id);
+    setExpenses(newExpenses);
+    syncToDb(newExpenses);
   };
 
   const handleUpdateItem = (id: string, field: keyof ExpenseEntry, value: any) => {
-    setExpenses(expenses.map(item => item.id === id ? { ...item, [field]: value } : item));
+    const newExpenses = expenses.map(item => item.id === id ? { ...item, [field]: value } : item);
+    setExpenses(newExpenses);
+    syncToDb(newExpenses);
   };
 
   const totalExpense = expenses.reduce((sum, item) => sum + (item.amount || 0), 0);
@@ -135,11 +161,13 @@ export const ExpenseInput = () => {
                         <GoogleDriveUploader
                           documentType="receipt"
                           onUploadSuccess={(fileId, webViewLink) => {
-                            setExpenses(expenses.map(exp =>
+                            const newExpenses = expenses.map(exp =>
                               exp.id === item.id
                                 ? { ...exp, receiptUrl: webViewLink, receiptDriveFileId: fileId }
                                 : exp
-                            ));
+                            );
+                            setExpenses(newExpenses);
+                            syncToDb(newExpenses);
                             setExpandedRowId(null);
                           }}
                         />

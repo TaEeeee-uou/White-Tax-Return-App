@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, BackButton } from '../components/Layout';
-import { CheckCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, Loader2, Database } from 'lucide-react';
 import { useUser } from '../UserContext';
+import { findOrCreateDatabase, getSheetData, syncSheetData } from '../lib/googleSheets';
 
 export const Settings = () => {
-  const { profile, updateProfile, googleToken, setGoogleToken } = useUser();
+  const { profile, updateProfile, googleToken, setGoogleToken, spreadsheetId, setSpreadsheetId, setIncomes, setExpenses } = useUser();
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false); // DB同期中のローディング状態
 
   const [formData, setFormData] = useState({
     name: profile.name,
@@ -32,7 +34,8 @@ export const Settings = () => {
         try {
           const client = (window as any).google.accounts.oauth2.initTokenClient({
             client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || 'dummy-client-id-for-preview',
-            scope: 'https://www.googleapis.com/auth/drive.file',
+            // Drive API にくわえ、Sheets API のスコープを追加
+            scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets',
             callback: (response: any) => {
               if (response.error) {
                 console.error("Auth error:", response.error);
@@ -69,6 +72,53 @@ export const Settings = () => {
     };
   }, [setGoogleToken]);
 
+  // Google連携完了時、スプレッドシート(DB)の検索・作成と初期データ同期を行う
+  useEffect(() => {
+    if (!googleToken) return;
+
+    const syncDatabase = async () => {
+      setIsSyncing(true);
+      try {
+        setAuthError(null);
+        // 1. DB用スプレッドシートを取得または新規作成
+        const dbId = await findOrCreateDatabase(googleToken);
+        setSpreadsheetId(dbId);
+
+        // 2. 各シートからデータを取得
+        const profileData = await getSheetData(googleToken, dbId, 'Profile');
+        const incomesData = await getSheetData(googleToken, dbId, 'Incomes');
+        const expensesData = await getSheetData(googleToken, dbId, 'Expenses');
+
+        // 3. 取得したデータが存在すれば Context を上書き
+        if (profileData.length > 0) {
+          // Profileは最初の1行目をオブジェクトとして使用
+          updateProfile(profileData[0]);
+          // formDataも再セッティング
+          setFormData({
+            ...formData,
+            ...profileData[0],
+            sameAddress: profileData[0].address === profileData[0].businessAddress
+          });
+        }
+        if (incomesData.length > 0) {
+          setIncomes(incomesData);
+        }
+        if (expensesData.length > 0) {
+          setExpenses(expensesData);
+        }
+
+        console.log("Database synced successfully.");
+      } catch (err: any) {
+        console.error("Database sync failed:", err);
+        setAuthError('データベース(Spreadsheet)の同期に失敗しました。');
+      } finally {
+        setIsSyncing(false);
+      }
+    };
+
+    syncDatabase();
+  }, [googleToken, setSpreadsheetId, updateProfile, setIncomes, setExpenses]);
+
   const handleGoogleAuth = () => {
     setAuthError(null);
     if ((window as any).tokenClient) {
@@ -96,31 +146,46 @@ export const Settings = () => {
     setFormData(prev => ({ ...prev, sameAddress: e.target.checked }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsSaving(true);
 
-    // Simulate API call
+    const updatedProfile = {
+      name: formData.name,
+      phone: formData.phone,
+      zip: formData.zip,
+      address: formData.address,
+      job: formData.job,
+      businessName: formData.businessName,
+      businessAddress: formData.businessAddress,
+      businessContent: formData.businessContent
+    };
+
+    // Update global context
+    updateProfile(updatedProfile);
+
+    // Save to Google Spreadsheet if connected
+    if (googleToken && spreadsheetId) {
+      try {
+        await syncSheetData(
+          googleToken,
+          spreadsheetId,
+          'Profile',
+          ['id', 'name', 'job', 'phone', 'zip', 'address', 'businessName', 'businessAddress', 'businessContent'],
+          [{ id: '1', ...updatedProfile }]
+        );
+        console.log("Profile saved to database.");
+      } catch (err) {
+        console.error("Failed to save profile to database:", err);
+      }
+    }
+
+    setIsSaving(false);
+    setShowSuccess(true);
+
+    // Hide success message after 3 seconds
     setTimeout(() => {
-      // Update global context
-      updateProfile({
-        name: formData.name,
-        phone: formData.phone,
-        zip: formData.zip,
-        address: formData.address,
-        job: formData.job,
-        businessName: formData.businessName,
-        businessAddress: formData.businessAddress,
-        businessContent: formData.businessContent
-      });
-
-      setIsSaving(false);
-      setShowSuccess(true);
-
-      // Hide success message after 3 seconds
-      setTimeout(() => {
-        setShowSuccess(false);
-      }, 3000);
-    }, 1000);
+      setShowSuccess(false);
+    }, 3000);
   };
 
   return (
@@ -261,7 +326,12 @@ export const Settings = () => {
                 </p>
               </div>
               <div>
-                {googleToken ? (
+                {isSyncing ? (
+                  <div className="flex items-center gap-2 text-primary font-medium px-4 py-2">
+                    <Loader2 className="animate-spin" size={20} />
+                    データベースと同期中...
+                  </div>
+                ) : googleToken ? (
                   <div className="flex items-center gap-2 text-green-600 bg-green-50 px-4 py-2 rounded-lg font-medium border border-green-200">
                     <CheckCircle size={18} />
                     連携済み

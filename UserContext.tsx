@@ -18,6 +18,8 @@ interface UserContextType {
   updateProfile: (newProfile: Partial<UserProfile>) => void;
   googleToken: string | null;
   setGoogleToken: (token: string | null) => void;
+  spreadsheetId: string | null;
+  setSpreadsheetId: (id: string | null) => void;
   incomes: IncomeEntry[];
   setIncomes: React.Dispatch<React.SetStateAction<IncomeEntry[]>>;
   expenses: ExpenseEntry[];
@@ -39,6 +41,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   });
 
   const [googleToken, setGoogleToken] = useState<string | null>(null);
+  const [spreadsheetId, setSpreadsheetId] = useState<string | null>(null);
 
   // アプリケーション全体で使い回す収支データ（初期値にモックを使用）
   const [incomes, setIncomes] = useState<IncomeEntry[]>(MOCK_INCOME);
@@ -54,6 +57,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       updateProfile,
       googleToken,
       setGoogleToken,
+      spreadsheetId,
+      setSpreadsheetId,
       incomes,
       setIncomes,
       expenses,

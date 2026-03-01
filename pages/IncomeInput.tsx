@@ -5,29 +5,56 @@ import { INCOME_TYPES } from '../constants';
 import { IncomeEntry } from '../types';
 import { GoogleDriveUploader } from '../components/GoogleDriveUploader';
 import { useUser } from '../UserContext';
+import { syncSheetData } from '../lib/googleSheets';
 
 export const IncomeInput = () => {
-  const { incomes, setIncomes } = useUser();
+  const { incomes, setIncomes, googleToken, spreadsheetId } = useUser();
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // DBへ変更を同期するヘルパー関数
+  const syncToDb = async (newIncomes: IncomeEntry[]) => {
+    if (!googleToken || !spreadsheetId) return;
+    setIsSaving(true);
+    try {
+      await syncSheetData(
+        googleToken,
+        spreadsheetId,
+        'Incomes',
+        ['id', 'date', 'type', 'description', 'amount', 'memo', 'receiptUrl', 'receiptDriveFileId'],
+        newIncomes
+      );
+    } catch (err) {
+      console.error("Failed to sync incomes to DB:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleAddRow = () => {
     const newId = Date.now().toString();
-    setIncomes([...incomes, {
+    const newIncomes = [...incomes, {
       id: newId,
       date: '',
       type: 'sales', // Default
       description: '',
       amount: 0,
       memo: ''
-    }]);
+    }];
+    setIncomes(newIncomes);
+    syncToDb(newIncomes);
   };
 
   const handleDeleteRow = (id: string) => {
-    setIncomes(incomes.filter(item => item.id !== id));
+    const newIncomes = incomes.filter(item => item.id !== id);
+    setIncomes(newIncomes);
+    syncToDb(newIncomes);
   };
 
   const handleUpdateItem = (id: string, field: keyof IncomeEntry, value: any) => {
-    setIncomes(incomes.map(item => item.id === id ? { ...item, [field]: value } : item));
+    const newIncomes = incomes.map(item => item.id === id ? { ...item, [field]: value } : item);
+    setIncomes(newIncomes);
+    syncToDb(newIncomes);
   };
 
   const totalIncome = incomes.reduce((sum, item) => sum + (item.amount || 0), 0);
@@ -133,11 +160,13 @@ export const IncomeInput = () => {
                         <GoogleDriveUploader
                           documentType="invoice"
                           onUploadSuccess={(fileId, webViewLink) => {
-                            setIncomes(incomes.map(inc =>
+                            const newIncomes = incomes.map(inc =>
                               inc.id === item.id
                                 ? { ...inc, receiptUrl: webViewLink, receiptDriveFileId: fileId }
                                 : inc
-                            ));
+                            );
+                            setIncomes(newIncomes);
+                            syncToDb(newIncomes);
                             setExpandedRowId(null);
                           }}
                         />
