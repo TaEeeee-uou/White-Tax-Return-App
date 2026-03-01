@@ -69,7 +69,7 @@ export const ExpenseInput = () => {
 
   return (
     <Layout variant="header">
-      <div className="space-y-6">
+      <div className="space-y-6 pb-28">
 
         {/* Page Heading */}
         <div>
