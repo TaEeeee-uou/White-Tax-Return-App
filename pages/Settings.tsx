@@ -24,40 +24,59 @@ export const Settings = () => {
 
   // Initialize Google Token Client
   useEffect(() => {
+    let checkGoogleApi: NodeJS.Timeout;
+
     const initClient = () => {
       /* global google */
       if ((window as any).google?.accounts?.oauth2) {
-        const client = (window as any).google.accounts.oauth2.initTokenClient({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || 'dummy-client-id-for-preview',
-          scope: 'https://www.googleapis.com/auth/drive.file',
-          callback: (response: any) => {
-            if (response.error) {
-              setAuthError('認証に失敗またはキャンセルされました');
-              return;
-            }
-            setGoogleToken(response.access_token);
-            setAuthError(null);
-          },
-        });
-        (window as any).tokenClient = client;
+        try {
+          const client = (window as any).google.accounts.oauth2.initTokenClient({
+            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || 'dummy-client-id-for-preview',
+            scope: 'https://www.googleapis.com/auth/drive.file',
+            callback: (response: any) => {
+              if (response.error) {
+                console.error("Auth error:", response.error);
+                setAuthError('認証に失敗またはキャンセルされました');
+                return;
+              }
+              console.log("Auth success, token received.");
+              setGoogleToken(response.access_token);
+              setAuthError(null);
+            },
+          });
+          (window as any).tokenClient = client;
+          console.log("Google Token Client initialized successfully.");
+        } catch (error) {
+          console.error("Error initializing Google Token Client:", error);
+          setAuthError('認証モジュールの初期化に失敗しました');
+        }
       }
     };
 
-    const checkGoogleApi = setInterval(() => {
-      if ((window as any).google) {
-        clearInterval(checkGoogleApi);
-        initClient();
-      }
-    }, 100);
+    if (!(window as any).google?.accounts?.oauth2) {
+      checkGoogleApi = setInterval(() => {
+        if ((window as any).google?.accounts?.oauth2) {
+          clearInterval(checkGoogleApi);
+          initClient();
+        }
+      }, 300);
+    } else {
+      initClient();
+    }
 
-    return () => clearInterval(checkGoogleApi);
+    return () => {
+      if (checkGoogleApi) clearInterval(checkGoogleApi);
+    };
   }, [setGoogleToken]);
 
   const handleGoogleAuth = () => {
+    setAuthError(null);
     if ((window as any).tokenClient) {
+      console.log("Requesting access token...");
       (window as any).tokenClient.requestAccessToken();
     } else {
-      setAuthError('Google認証スクリプトが読み込まれていません');
+      console.error("Token client is not initialized.");
+      setAuthError('Google認証の準備ができていません。画面をリロードしてください。');
     }
   };
 
