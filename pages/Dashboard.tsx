@@ -11,7 +11,7 @@ export const Dashboard = () => {
   return (
     <Layout variant="sidebar">
       <div className="max-w-6xl mx-auto space-y-8">
-        
+
         {/* Header */}
         <div>
           <BackButton />
@@ -46,7 +46,7 @@ export const Dashboard = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            
+
             {/* Progress Section */}
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
               <h2 className="text-xl font-bold text-gray-900 mb-4">収支内訳書 作成進捗</h2>
@@ -65,14 +65,24 @@ export const Dashboard = () => {
                     <CheckCircle size={18} />
                   </div>
                   <span className="flex-1 font-medium text-gray-900">収入の入力</span>
-                  <span className="text-sm text-gray-500">完了</span>
+                  <button
+                    onClick={() => navigate('/income')}
+                    className="text-sm text-primary font-medium hover:underline flex items-center gap-1"
+                  >
+                    追記・修正 <ArrowUpRight size={14} />
+                  </button>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white">
                     <CheckCircle size={18} />
                   </div>
                   <span className="flex-1 font-medium text-gray-900">経費の入力</span>
-                  <span className="text-sm text-gray-500">完了</span>
+                  <button
+                    onClick={() => navigate('/expense')}
+                    className="text-sm text-primary font-medium hover:underline flex items-center gap-1"
+                  >
+                    追記・修正 <ArrowUpRight size={14} />
+                  </button>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
@@ -104,12 +114,12 @@ export const Dashboard = () => {
                       <span className="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full font-medium">要対応</span>
                     </td>
                     <td className="py-4 text-right">
-                        <button 
-                          onClick={() => navigate('/depreciation')}
-                          className="text-primary text-sm font-semibold hover:underline"
-                        >
-                          入力する
-                        </button>
+                      <button
+                        onClick={() => navigate('/depreciation')}
+                        className="text-primary text-sm font-semibold hover:underline"
+                      >
+                        入力する
+                      </button>
                     </td>
                   </tr>
                   <tr>
@@ -119,12 +129,12 @@ export const Dashboard = () => {
                       <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded-full font-medium">確認待ち</span>
                     </td>
                     <td className="py-4 text-right">
-                        <button 
-                          onClick={() => navigate('/expense')}
-                          className="text-primary text-sm font-semibold hover:underline"
-                        >
-                          確認する
-                        </button>
+                      <button
+                        onClick={() => navigate('/expense')}
+                        className="text-primary text-sm font-semibold hover:underline"
+                      >
+                        確認する
+                      </button>
                     </td>
                   </tr>
                 </tbody>
@@ -138,7 +148,7 @@ export const Dashboard = () => {
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm text-center">
               <h2 className="text-xl font-bold text-gray-900 mb-2">次のステップ</h2>
               <p className="text-gray-500 text-sm mb-6">減価償却費の計算を行いましょう。</p>
-              <button 
+              <button
                 onClick={() => navigate('/depreciation')}
                 className="w-full bg-primary text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors"
               >
@@ -151,38 +161,38 @@ export const Dashboard = () => {
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
               <h2 className="text-xl font-bold text-gray-900 mb-4">経費の内訳</h2>
               <div className="h-64 relative">
-                 <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={CHART_DATA_EXPENSES}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {CHART_DATA_EXPENSES.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                     <span className="text-xs text-gray-500">総経費</span>
-                     <span className="text-xl font-bold text-gray-900">¥218万</span>
-                  </div>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={CHART_DATA_EXPENSES}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {CHART_DATA_EXPENSES.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-xs text-gray-500">総経費</span>
+                  <span className="text-xl font-bold text-gray-900">¥218万</span>
+                </div>
               </div>
               <div className="space-y-3 mt-2">
                 {CHART_DATA_EXPENSES.map((item) => (
-                    <div key={item.name} className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                            <span className="text-gray-700">{item.name}</span>
-                        </div>
-                        <span className="font-medium text-gray-900">{item.value}%</span>
+                  <div key={item.name} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                      <span className="text-gray-700">{item.name}</span>
                     </div>
+                    <span className="font-medium text-gray-900">{item.value}%</span>
+                  </div>
                 ))}
               </div>
             </div>
