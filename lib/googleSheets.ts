@@ -148,6 +148,57 @@ export async function getSheetData(accessToken: string, spreadsheetId: string, s
 }
 
 /**
+ * 指定されたスプレッドシートに必須のシート名が存在するか確認し、なければ追加する
+ */
+export async function ensureSheetsExist(accessToken: string, spreadsheetId: string, requiredSheetNames: string[]): Promise<void> {
+    // 現在のシート一覧を取得
+    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Failed to fetch spreadsheet info: ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await response.json();
+    const existingTitles = data.sheets.map((s: any) => s.properties.title);
+
+    const missingSheets = requiredSheetNames.filter(name => !existingTitles.includes(name));
+
+    if (missingSheets.length === 0) {
+        return; // すべて存在すれば何もしない
+    }
+
+    console.log(`Creating missing sheets: ${missingSheets.join(', ')}`);
+
+    // 足りないシートを作るためのリクエストを作成
+    const requests: any[] = missingSheets.map(title => ({
+        addSheet: {
+            properties: { title }
+        }
+    }));
+
+    // batchUpdate でシートを一括追加
+    const updateResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ requests })
+    });
+
+    if (!updateResponse.ok) {
+        const errorData = await updateResponse.json();
+        throw new Error(`Failed to create missing sheets: ${JSON.stringify(errorData)}`);
+    }
+
+    // 作成直後だと、ヘッダーがない空のシートになるが、
+    // 書き込み時 (syncSheetData) にヘッダーごと上書きするのでここでは初期化は不要。
+}
+
+/**
  * 複数のシートのデータを一括で取得し、JSON配列のオブジェクトに変換して返す
  * これにより 429 Quota Exceeded (Read requests per minute per user) エラーを防ぐ
  */

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Layout, BackButton } from '../components/Layout';
 import { CheckCircle, Loader2, Database } from 'lucide-react';
 import { useUser } from '../UserContext';
-import { findOrCreateDatabase, getSheetData, syncSheetData, batchGetSheetData } from '../lib/googleSheets';
+import { findOrCreateDatabase, getSheetData, syncSheetData, batchGetSheetData, ensureSheetsExist } from '../lib/googleSheets';
 
 export const Settings = () => {
   const { profile, updateProfile, googleToken, setGoogleToken, spreadsheetId, setSpreadsheetId, setIncomes, setExpenses } = useUser();
@@ -98,6 +98,9 @@ export const Settings = () => {
     try {
       setAuthError(null);
       setSpreadsheetId(dbId);
+
+      // まず、必要なシート（タブ）がそのスプレッドシートに存在するか確認・作成する
+      await ensureSheetsExist(googleToken, dbId, ['Profile', 'Incomes', 'Expenses']);
 
       // batchGetで3つのシート（タブ）のデータを1回のAPIリクエストで一括取得する
       const allData = await batchGetSheetData(googleToken, dbId, ['Profile', 'Incomes', 'Expenses']);
