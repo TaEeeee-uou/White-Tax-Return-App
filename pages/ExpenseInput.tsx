@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Layout, BackButton } from '../components/Layout';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Loader2 } from 'lucide-react';
 import { MOCK_CATEGORIES } from '../constants';
 import { ExpenseEntry } from '../types';
 import { GoogleDriveUploader } from '../components/GoogleDriveUploader';
@@ -11,6 +11,7 @@ export const ExpenseInput = () => {
   const { expenses, setExpenses, googleToken, spreadsheetId } = useUser();
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const syncToDb = async (newExpenses: ExpenseEntry[]) => {
     if (!googleToken || !spreadsheetId) return;
@@ -28,6 +29,14 @@ export const ExpenseInput = () => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleSave = async () => {
+    await syncToDb(expenses);
+    setShowSuccess(true);
+    setTimeout(() => {
+      setShowSuccess(false);
+    }, 3000);
   };
 
   const handleAddRow = () => {
@@ -202,6 +211,22 @@ export const ExpenseInput = () => {
             <span className="font-bold text-gray-600">支出合計</span>
             <span className="font-bold text-3xl text-gray-900 tracking-tight">¥ {totalExpense.toLocaleString()}</span>
           </div>
+        </div>
+
+        {/* Floating Footer for Save Button */}
+        <div className="fixed bottom-0 right-0 w-full lg:w-[calc(100%-16rem)] border-t border-gray-200 bg-white/90 backdrop-blur-sm p-4 flex justify-end items-center gap-4 z-10">
+          <div className={`flex items-center gap-2 text-green-600 transition-opacity duration-300 ${showSuccess ? 'opacity-100' : 'opacity-0'}`}>
+            <CheckCircle size={20} />
+            <span className="text-sm font-medium">保存しました</span>
+          </div>
+          <button
+            onClick={handleSave}
+            disabled={isSaving || !googleToken || !spreadsheetId}
+            className="bg-primary text-white font-bold h-12 px-8 rounded-lg hover:bg-primary/90 transition-colors shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isSaving && <Loader2 className="animate-spin" size={20} />}
+            {isSaving ? '保存中...' : '保存する'}
+          </button>
         </div>
 
       </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Layout, BackButton } from '../components/Layout';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Loader2 } from 'lucide-react';
 import { INCOME_TYPES } from '../constants';
 import { IncomeEntry } from '../types';
 import { GoogleDriveUploader } from '../components/GoogleDriveUploader';
@@ -11,8 +11,9 @@ export const IncomeInput = () => {
   const { incomes, setIncomes, googleToken, spreadsheetId } = useUser();
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  // DBへ変更を同期するヘルパー関数
+  // DBへ変更を同期するヘルパー関数（裏側の自動連携用・あるいは手動連携用）
   const syncToDb = async (newIncomes: IncomeEntry[]) => {
     if (!googleToken || !spreadsheetId) return;
     setIsSaving(true);
@@ -29,6 +30,14 @@ export const IncomeInput = () => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleSave = async () => {
+    await syncToDb(incomes);
+    setShowSuccess(true);
+    setTimeout(() => {
+      setShowSuccess(false);
+    }, 3000);
   };
 
   const handleAddRow = () => {
@@ -204,6 +213,22 @@ export const IncomeInput = () => {
         <div className="bg-gray-50 p-6 rounded-lg flex justify-between items-center border-l-4 border-primary">
           <span className="font-bold text-gray-600">収入合計</span>
           <span className="font-bold text-3xl text-gray-900 tracking-tight">¥ {totalIncome.toLocaleString()}</span>
+        </div>
+
+        {/* Floating Footer for Save Button */}
+        <div className="fixed bottom-0 right-0 w-full lg:w-[calc(100%-16rem)] border-t border-gray-200 bg-white/90 backdrop-blur-sm p-4 flex justify-end items-center gap-4 z-10">
+          <div className={`flex items-center gap-2 text-green-600 transition-opacity duration-300 ${showSuccess ? 'opacity-100' : 'opacity-0'}`}>
+            <CheckCircle size={20} />
+            <span className="text-sm font-medium">保存しました</span>
+          </div>
+          <button
+            onClick={handleSave}
+            disabled={isSaving || !googleToken || !spreadsheetId}
+            className="bg-primary text-white font-bold h-12 px-8 rounded-lg hover:bg-primary/90 transition-colors shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isSaving && <Loader2 className="animate-spin" size={20} />}
+            {isSaving ? '保存中...' : '保存する'}
+          </button>
         </div>
 
       </div>
