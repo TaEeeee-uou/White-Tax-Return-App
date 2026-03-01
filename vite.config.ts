@@ -7,8 +7,8 @@ export default defineConfig(({ mode }) => {
   return {
     base: '/White-Tax-Return-App/',
     server: {
-      port: 3000,
-      host: '0.0.0.0',
+      port: 5173,
+      strictPort: true, // ポートが使用中の場合は別のポートにフォールバックせずエラーにする
     },
     plugins: [react()],
     define: {

@@ -14,6 +14,8 @@ export interface UserProfile {
 interface UserContextType {
   profile: UserProfile;
   updateProfile: (newProfile: Partial<UserProfile>) => void;
+  googleToken: string | null;
+  setGoogleToken: (token: string | null) => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -30,12 +32,14 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     businessContent: 'Webサイト制作、システム開発、ITコンサルティング'
   });
 
+  const [googleToken, setGoogleToken] = useState<string | null>(null);
+
   const updateProfile = (newProfile: Partial<UserProfile>) => {
     setProfile((prev) => ({ ...prev, ...newProfile }));
   };
 
   return (
-    <UserContext.Provider value={{ profile, updateProfile }}>
+    <UserContext.Provider value={{ profile, updateProfile, googleToken, setGoogleToken }}>
       {children}
     </UserContext.Provider>
   );
