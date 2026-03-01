@@ -1,13 +1,13 @@
 import React from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  TrendingUp, 
-  TrendingDown, 
-  Settings, 
-  FileText, 
-  History, 
-  Tag, 
+import {
+  LayoutDashboard,
+  TrendingUp,
+  TrendingDown,
+  Settings,
+  FileText,
+  History,
+  Tag,
   ChevronRight,
   Menu,
   ChevronLeft,
@@ -23,8 +23,8 @@ interface LayoutProps {
 export const BackButton = ({ className = "" }: { className?: string }) => {
   const navigate = useNavigate();
   return (
-    <button 
-      onClick={() => navigate(-1)} 
+    <button
+      onClick={() => navigate(-1)}
       className={`flex items-center gap-1 text-gray-500 hover:text-gray-900 transition-colors mb-4 ${className}`}
     >
       <ChevronLeft size={20} />
@@ -38,10 +38,9 @@ const SidebarLink = ({ to, icon: Icon, label }: { to: string; icon: React.Elemen
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-          isActive
-            ? 'bg-primary/10 text-primary font-semibold'
-            : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+        `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActive
+          ? 'bg-primary/10 text-primary font-semibold'
+          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
         }`
       }
     >
@@ -56,10 +55,9 @@ const HeaderLink = ({ to, label, isActiveLink }: { to: string; label: string; is
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `text-sm font-medium leading-normal transition-colors ${
-          isActive || isActiveLink
-            ? 'text-primary font-bold border-b-2 border-primary pb-1'
-            : 'text-gray-600 hover:text-primary'
+        `text-sm font-medium leading-normal transition-colors ${isActive || isActiveLink
+          ? 'text-primary font-bold border-b-2 border-primary pb-1'
+          : 'text-gray-600 hover:text-primary'
         }`
       }
     >
@@ -85,16 +83,19 @@ export const Layout: React.FC<LayoutProps> = ({ children, variant = 'sidebar' })
             </div>
             <h2 className="text-gray-900 text-lg font-bold">白色申告アプリ</h2>
           </NavLink>
-          
+
           <div className="flex items-center gap-8">
             <div className="hidden md:flex items-center gap-6">
               <HeaderLink to="/settings" label="基本情報" />
               <HeaderLink to="/income" label="収入" isActiveLink={location.pathname === '/income'} />
               <HeaderLink to="/expense" label="経費" isActiveLink={location.pathname === '/expense'} />
             </div>
-            <button className="bg-primary text-white text-sm font-bold px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
-              保存する
-            </button>
+            <div className="flex items-center gap-1.5 text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200">
+              <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-xs font-bold">自動保存</span>
+            </div>
           </div>
         </header>
         <main className="flex-1 w-full max-w-5xl mx-auto p-4 md:p-8">
@@ -109,7 +110,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, variant = 'sidebar' })
     <div className="min-h-screen flex w-full bg-background-light">
       <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 hidden lg:flex flex-col">
         <div className="p-6 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-400 to-purple-400"></div>
+          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-400 to-purple-400"></div>
           <div>
             <h1 className="text-gray-900 font-bold">{profile.name}</h1>
             <p className="text-gray-500 text-sm">{profile.job}</p>
@@ -129,13 +130,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, variant = 'sidebar' })
       </aside>
 
       <main className="flex-1 lg:ml-64 p-4 md:p-8 min-h-screen">
-         <div className="lg:hidden mb-4 flex items-center justify-between bg-white p-4 rounded-lg shadow-sm">
-             <div className="flex items-center gap-2">
-                 <div className="w-8 h-8 rounded-full bg-primary/20"></div>
-                 <span className="font-bold">{profile.name}</span>
-             </div>
-             <button className="p-2"><Menu /></button>
-         </div>
+        <div className="lg:hidden mb-4 flex items-center justify-between bg-white p-4 rounded-lg shadow-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-primary/20"></div>
+            <span className="font-bold">{profile.name}</span>
+          </div>
+          <button className="p-2"><Menu /></button>
+        </div>
         {children}
       </main>
     </div>
