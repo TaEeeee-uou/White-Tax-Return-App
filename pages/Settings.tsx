@@ -110,7 +110,7 @@ export const Settings = () => {
         console.log("Database synced successfully.");
       } catch (err: any) {
         console.error("Database sync failed:", err);
-        setAuthError('データベース(Spreadsheet)の同期に失敗しました。');
+        setAuthError(err.message || 'データベース(Spreadsheet)の同期に不明なエラーが発生しました。');
       } finally {
         setIsSyncing(false);
       }
@@ -123,7 +123,7 @@ export const Settings = () => {
     setAuthError(null);
     if ((window as any).tokenClient) {
       console.log("Requesting access token...");
-      (window as any).tokenClient.requestAccessToken();
+      (window as any).tokenClient.requestAccessToken({ prompt: 'consent' });
     } else {
       console.error("Token client is not initialized.");
       setAuthError('Google認証の準備ができていません。画面をリロードしてください。');
@@ -345,9 +345,22 @@ export const Settings = () => {
                     Googleで認証する
                   </button>
                 )}
-                {authError && <p className="text-xs text-red-500 mt-2">{authError}</p>}
               </div>
             </div>
+            {authError && (
+              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <h4 className="text-sm font-bold text-red-800">連携エラーが発生しました</h4>
+                    <p className="text-sm text-red-700 mt-1 break-all">{authError}</p>
+                    <p className="text-xs text-red-600 mt-2">※ このエラーメッセージを開発者（AIアシスタント）にお伝えください。</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
         </div>
 
