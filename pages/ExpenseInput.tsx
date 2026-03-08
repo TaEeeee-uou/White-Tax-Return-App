@@ -1,3 +1,8 @@
+/*
+ * Version: 0.0.1
+ * Update: 自動同期を廃止し、保存ボタン押下時のみスプレッドシートへ反映するよう変更
+ * Date: 2026-03-08
+ */
 import React, { useState } from 'react';
 import { Layout, BackButton } from '../components/Layout';
 import { Plus, Trash2, CheckCircle, Loader2 } from 'lucide-react';
@@ -53,19 +58,19 @@ export const ExpenseInput = () => {
       memo: ''
     }];
     setExpenses(newExpenses);
-    syncToDb(newExpenses);
+    // 自動同期なし: 保存ボタン押下時のみ syncToDb を呼ぶ
   };
 
   const handleDeleteRow = (id: string) => {
     const newExpenses = expenses.filter(item => item.id !== id);
     setExpenses(newExpenses);
-    syncToDb(newExpenses);
+    // 自動同期なし: 保存ボタン押下時のみ syncToDb を呼ぶ
   };
 
   const handleUpdateItem = (id: string, field: keyof ExpenseEntry, value: any) => {
     const newExpenses = expenses.map(item => item.id === id ? { ...item, [field]: value } : item);
     setExpenses(newExpenses);
-    syncToDb(newExpenses);
+    // 自動同期なし: 保存ボタン押下時のみ syncToDb を呼ぶ
   };
 
   const totalExpense = expenses.reduce((sum, item) => sum + (item.amount || 0), 0);
@@ -192,7 +197,7 @@ export const ExpenseInput = () => {
                               return exp;
                             });
                             setExpenses(newExpenses);
-                            syncToDb(newExpenses);
+                            // 自動同期なし: 保存ボタン押下時のみ syncToDb を呼ぶ
 
                             if (text) {
                               setOcrRawText(prev => ({ ...prev, [item.id]: text }));

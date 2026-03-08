@@ -1,3 +1,8 @@
+/*
+ * Version: 0.0.1
+ * Update: 自動同期を廃止し、保存ボタン押下時のみスプレッドシートへ反映するよう変更
+ * Date: 2026-03-08
+ */
 import React, { useState } from 'react';
 import { Layout, BackButton } from '../components/Layout';
 import { Plus, Trash2, CheckCircle, Loader2 } from 'lucide-react';
@@ -51,19 +56,19 @@ export const IncomeInput = () => {
       memo: ''
     }];
     setIncomes(newIncomes);
-    syncToDb(newIncomes);
+    // 自動同期なし: 保存ボタン押下時のみ syncToDb を呼ぶ
   };
 
   const handleDeleteRow = (id: string) => {
     const newIncomes = incomes.filter(item => item.id !== id);
     setIncomes(newIncomes);
-    syncToDb(newIncomes);
+    // 自動同期なし: 保存ボタン押下時のみ syncToDb を呼ぶ
   };
 
   const handleUpdateItem = (id: string, field: keyof IncomeEntry, value: any) => {
     const newIncomes = incomes.map(item => item.id === id ? { ...item, [field]: value } : item);
     setIncomes(newIncomes);
-    syncToDb(newIncomes);
+    // 自動同期なし: 保存ボタン押下時のみ syncToDb を呼ぶ
   };
 
   const totalIncome = incomes.reduce((sum, item) => sum + (item.amount || 0), 0);
@@ -175,7 +180,7 @@ export const IncomeInput = () => {
                                 : inc
                             );
                             setIncomes(newIncomes);
-                            syncToDb(newIncomes);
+                            // 自動同期なし: 保存ボタン押下時のみ syncToDb を呼ぶ
                             setExpandedRowId(null);
                           }}
                         />
