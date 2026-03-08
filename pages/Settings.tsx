@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Layout, BackButton } from '../components/Layout';
-import { CheckCircle, Loader2, Database } from 'lucide-react';
+import { CheckCircle, Loader2, Database, FileText, Upload, AlertTriangle } from 'lucide-react';
 import { useUser } from '../UserContext';
 import { findOrCreateDatabase, getSheetData, syncSheetData, batchGetSheetData, ensureSheetsExist } from '../lib/googleSheets';
+import { exportToCSV, parseCSV, detectCSVType, todayString } from '../lib/csv';
 
 export const Settings = () => {
-  const { profile, updateProfile, googleToken, setGoogleToken, spreadsheetId, setSpreadsheetId, setIncomes, setExpenses } = useUser();
+  const { profile, updateProfile, googleToken, setGoogleToken, spreadsheetId, setSpreadsheetId, incomes, setIncomes, expenses, setExpenses } = useUser();
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false); // DB同期中のローディング状態
 
@@ -23,6 +24,13 @@ export const Settings = () => {
 
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // CSV関連
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [csvImportMode, setCsvImportMode] = useState<'append' | 'overwrite'>('append');
+  const [csvPreview, setCsvPreview] = useState<{ type: 'incomes' | 'expenses' | 'unknown'; count: number; records: any[] } | null>(null);
+  const [csvError, setCsvError] = useState<string | null>(null);
+  const [csvSuccess, setCsvSuccess] = useState<string | null>(null);
 
   // Initialize Google Token Client
   useEffect(() => {
@@ -208,6 +216,70 @@ export const Settings = () => {
     setTimeout(() => {
       setShowSuccess(false);
     }, 3000);
+  };
+
+  // ---- CSV エクスポート ----
+  const handleExportIncomes = () => {
+    exportToCSV(
+      ['id', 'date', 'type', 'description', 'amount', 'memo', 'receiptUrl', 'receiptDriveFileId'],
+      incomes,
+      `incomes_${todayString()}.csv`
+    );
+  };
+
+  const handleExportExpenses = () => {
+    exportToCSV(
+      ['id', 'date', 'description', 'amount', 'category', 'memo', 'receiptUrl', 'receiptDriveFileId'],
+      expenses,
+      `expenses_${todayString()}.csv`
+    );
+  };
+
+  // ---- CSV インポート ----
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCsvError(null);
+    setCsvSuccess(null);
+    setCsvPreview(null);
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const { headers, records } = parseCSV(text);
+      if (records.length === 0) {
+        setCsvError('CSVにデータが見つかりませんでした。');
+        return;
+      }
+      const type = detectCSVType(headers);
+      if (type === 'unknown') {
+        setCsvError('CSVの形式を判定できませんでした。収入CSVには「type」列、経費CSVには「category」列が必要です。');
+        return;
+      }
+      setCsvPreview({ type, count: records.length, records });
+    };
+    reader.readAsText(file, 'utf-8');
+  };
+
+  const handleImportConfirm = () => {
+    if (!csvPreview) return;
+    if (csvImportMode === 'overwrite') {
+      if (!window.confirm(`既存の${csvPreview.type === 'incomes' ? '収入' : '経費'}データ全件を削除して上書きします。よろしいですか？`)) return;
+    }
+
+    if (csvPreview.type === 'incomes') {
+      setIncomes(prev => csvImportMode === 'overwrite' ? csvPreview.records : [...prev, ...csvPreview.records]);
+    } else {
+      setExpenses(prev => csvImportMode === 'overwrite' ? csvPreview.records : [...prev, ...csvPreview.records]);
+    }
+
+    const label = csvPreview.type === 'incomes' ? '収入' : '経費';
+    const modeLabel = csvImportMode === 'overwrite' ? '上書き' : '追加';
+    setCsvSuccess(`${label}データ ${csvPreview.count} 件を${modeLabel}しました。`);
+    setCsvPreview(null);
+    setCsvError(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    setTimeout(() => setCsvSuccess(null), 4000);
   };
 
   return (
@@ -419,6 +491,127 @@ export const Settings = () => {
                   </div>
                 </div>
               )}
+            </div>
+          </section>
+
+          {/* CSV Backup Section */}
+          <section className="bg-white p-6 rounded-xl border border-gray-200">
+            <h2 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-4 mb-6">CSVバックアップ</h2>
+            <div className="space-y-8">
+
+              {/* Export */}
+              <div>
+                <h3 className="text-base font-semibold text-gray-800 mb-1 flex items-center gap-2">
+                  <FileText size={18} className="text-primary" />
+                  エクスポート（CSVダウンロード）
+                </h3>
+                <p className="text-sm text-gray-500 mb-4">入力済みのデータをCSVファイルとして保存します。スプシ連携が失敗した際のバックアップとしてご利用ください。</p>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={handleExportIncomes}
+                    disabled={incomes.length === 0}
+                    className="flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-200 font-medium px-5 py-2.5 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+                  >
+                    <FileText size={16} />
+                    収入データをCSV出力
+                    <span className="text-xs bg-blue-100 text-blue-600 rounded-full px-2 py-0.5 ml-1">{incomes.length}件</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExportExpenses}
+                    disabled={expenses.length === 0}
+                    className="flex items-center gap-2 bg-green-50 text-green-700 border border-green-200 font-medium px-5 py-2.5 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+                  >
+                    <FileText size={16} />
+                    経費データをCSV出力
+                    <span className="text-xs bg-green-100 text-green-600 rounded-full px-2 py-0.5 ml-1">{expenses.length}件</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Import */}
+              <div className="border-t border-gray-100 pt-6">
+                <h3 className="text-base font-semibold text-gray-800 mb-1 flex items-center gap-2">
+                  <Upload size={18} className="text-primary" />
+                  インポート（CSVから読み込み）
+                </h3>
+                <p className="text-sm text-gray-500 mb-4">このアプリで出力したCSVファイルを読み込みます。収入・経費はヘッダーから自動判定します。</p>
+
+                {/* Import mode */}
+                <div className="flex items-center gap-6 mb-4">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="radio" name="importMode" value="append"
+                      checked={csvImportMode === 'append'}
+                      onChange={() => setCsvImportMode('append')}
+                      className="text-primary focus:ring-primary"
+                    />
+                    既存データに追加
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="radio" name="importMode" value="overwrite"
+                      checked={csvImportMode === 'overwrite'}
+                      onChange={() => setCsvImportMode('overwrite')}
+                      className="text-primary focus:ring-primary"
+                    />
+                    <span className="text-red-600 font-medium">全件上書き</span>
+                  </label>
+                </div>
+
+                {/* File input */}
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 bg-gray-100 text-gray-700 border border-gray-300 font-medium px-4 py-2.5 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer text-sm">
+                    <Upload size={16} />
+                    CSVファイルを選択
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".csv,text/csv"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {/* Error */}
+                {csvError && (
+                  <div className="mt-4 flex items-start gap-2 text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm">
+                    <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+                    {csvError}
+                  </div>
+                )}
+
+                {/* Success */}
+                {csvSuccess && (
+                  <div className="mt-4 flex items-center gap-2 text-green-600 bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm">
+                    <CheckCircle size={16} />
+                    {csvSuccess}
+                  </div>
+                )}
+
+                {/* Preview */}
+                {csvPreview && (
+                  <div className="mt-4 border border-blue-200 bg-blue-50 rounded-lg p-4">
+                    <p className="text-sm font-semibold text-blue-800 mb-2">
+                      {csvPreview.type === 'incomes' ? '📥 収入データ' : '📥 経費データ'} {csvPreview.count}件 を検出しました
+                    </p>
+                    <p className="text-sm text-blue-700 mb-3">
+                      モード：<strong>{csvImportMode === 'append' ? '追加' : '全件上書き'}</strong>
+                      {csvImportMode === 'overwrite' && (
+                        <span className="ml-2 text-red-600 font-medium">⚠️ 既存データが削除されます</span>
+                      )}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleImportConfirm}
+                      className="bg-primary text-white text-sm font-bold px-5 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+                    >
+                      {csvImportMode === 'append' ? '追加する' : '上書きする'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
             </div>
           </section>
         </div>
