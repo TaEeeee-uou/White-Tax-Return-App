@@ -41,7 +41,7 @@ export const Dashboard = () => {
         {/* Header */}
         <div>
           <BackButton />
-          <h1 className="text-3xl font-black text-gray-900 mb-2">ダッシュボード (令和X年分)</h1>
+          <h1 className="text-3xl font-black text-gray-900 mb-2">ダッシュボード (令和7年分)</h1>
           <p className="text-gray-500">収支の概要と作成の進捗を確認できます。</p>
         </div>
 

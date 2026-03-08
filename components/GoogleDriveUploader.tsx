@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { UploadCloud, Check, AlertCircle, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useUser } from '../UserContext';
+import { processImageWithOCR, extractPotentialAmount, extractPotentialDate } from '../lib/OCRProcessor';
 
 interface GoogleDriveUploaderProps {
     documentType: 'receipt' | 'invoice'; // 'receipt'=領収書, 'invoice'=請求書
     year?: string; // 例: "2026", 指定がなければ現在の年を使用
-    onUploadSuccess: (fileId: string, webViewLink: string) => void;
+    onUploadSuccess: (fileId: string, webViewLink: string, ocrText?: string, ocrAmount?: number, ocrDate?: string) => void;
 }
 
 export const GoogleDriveUploader: React.FC<GoogleDriveUploaderProps> = ({ documentType, year, onUploadSuccess }) => {
@@ -73,7 +74,27 @@ export const GoogleDriveUploader: React.FC<GoogleDriveUploaderProps> = ({ docume
         setError(null);
 
         try {
-            // --- 1. フォルダ階層の準備 ---
+            // --- 1. OCR処理 (画像の場合のみ) ---
+            setStatusMessage('画像から文字を読み取り中 (OCR)...');
+            let ocrText = '';
+            let ocrAmount: number | undefined;
+            let ocrDate: string | undefined;
+
+            if (file.type.startsWith('image/')) {
+                try {
+                    const ocrResult = await processImageWithOCR(file);
+                    ocrText = ocrResult.text;
+
+                    const amt = extractPotentialAmount(ocrText);
+                    if (amt) ocrAmount = amt;
+                    const dt = extractPotentialDate(ocrText);
+                    if (dt) ocrDate = dt;
+                } catch (ocrErr) {
+                    console.warn("OCR Failed, continuing upload", ocrErr);
+                }
+            }
+
+            // --- 2. フォルダ階層の準備 ---
             setStatusMessage('保存先フォルダを確認中...');
 
             // Tier 1: アプリ用ルートフォルダ
@@ -83,8 +104,8 @@ export const GoogleDriveUploader: React.FC<GoogleDriveUploaderProps> = ({ docume
             // Tier 3: 種類別フォルダ (例: "領収書(経費)" or "請求書・売上等(収入)")
             const targetFolderId = await getOrCreateFolder(typeFolderName, token, yearFolderId);
 
-            // --- 2. ファイル本体のアップロード ---
-            setStatusMessage('ファイルを送信中...');
+            // --- 3. ファイル本体のアップロード ---
+            setStatusMessage('Google Driveへ送信中...');
 
             // ファイル名を手動でユニークにする（タイムスタンプ追加）
             const safeFileName = `${new Date().getTime()}_${file.name}`;
@@ -113,7 +134,7 @@ export const GoogleDriveUploader: React.FC<GoogleDriveUploaderProps> = ({ docume
             }
 
             setStatusMessage('');
-            onUploadSuccess(uploadData.id, uploadData.webViewLink);
+            onUploadSuccess(uploadData.id, uploadData.webViewLink, ocrText, ocrAmount, ocrDate);
         } catch (err: any) {
             setStatusMessage('');
             setError(err.message || 'アップロード中エラーが発生しました');

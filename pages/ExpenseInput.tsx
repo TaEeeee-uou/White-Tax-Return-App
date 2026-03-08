@@ -13,6 +13,9 @@ export const ExpenseInput = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // OCRの生テキストを保持するステート (行ID -> テキスト)
+  const [ocrRawText, setOcrRawText] = useState<Record<string, string>>({});
+
   const syncToDb = async (newExpenses: ExpenseEntry[]) => {
     if (!googleToken || !spreadsheetId) return;
     setIsSaving(true);
@@ -169,23 +172,51 @@ export const ExpenseInput = () => {
                       <td colSpan={6} className="px-4 py-4 border-t border-blue-100">
                         <GoogleDriveUploader
                           documentType="receipt"
-                          onUploadSuccess={(fileId, webViewLink) => {
-                            const newExpenses = expenses.map(exp =>
-                              exp.id === item.id
-                                ? { ...exp, receiptUrl: webViewLink, receiptDriveFileId: fileId }
-                                : exp
-                            );
+                          onUploadSuccess={(fileId, webViewLink, text, amount, date) => {
+                            const newExpenses = expenses.map(exp => {
+                              if (exp.id === item.id) {
+                                let newDate = exp.date;
+                                if (date) {
+                                  // YYYY/MM/DD → YYYY-MM-DD に簡易変換
+                                  newDate = date.replace(/\//g, '-');
+                                }
+                                return {
+                                  ...exp,
+                                  receiptUrl: webViewLink,
+                                  receiptDriveFileId: fileId,
+                                  amount: amount ? amount : exp.amount,
+                                  date: newDate,
+                                  memo: text ? (exp.memo ? `${exp.memo} (OCR)` : 'OCR読取あり') : exp.memo
+                                };
+                              }
+                              return exp;
+                            });
                             setExpenses(newExpenses);
                             syncToDb(newExpenses);
-                            setExpandedRowId(null);
+
+                            if (text) {
+                              setOcrRawText(prev => ({ ...prev, [item.id]: text }));
+                            }
+                            // プレビュー用に開いたままにする（手直ししやすくするため）
+                            // setExpandedRowId(null); 
                           }}
                         />
                         {item.receiptUrl && (
-                          <div className="mt-3 text-sm">
-                            <span className="text-gray-600 mr-2">現在の添付ファイル:</span>
-                            <a href={item.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">
-                              Google Driveで確認 ↗
-                            </a>
+                          <div className="mt-3 text-sm flex gap-4">
+                            <div>
+                              <span className="text-gray-600 mr-2">現在の添付ファイル:</span>
+                              <a href={item.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">
+                                Google Driveで確認 ↗
+                              </a>
+                            </div>
+                            {ocrRawText[item.id] && (
+                              <div className="border-l-2 border-blue-200 pl-4 w-1/2">
+                                <span className="text-xs font-bold text-gray-500 block mb-1">OCR読取テキスト (コピー用):</span>
+                                <div className="bg-white border rounded p-2 text-xs text-gray-700 h-24 overflow-y-auto font-mono whitespace-pre-wrap">
+                                  {ocrRawText[item.id]}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </td>
