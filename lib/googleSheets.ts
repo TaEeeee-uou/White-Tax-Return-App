@@ -266,13 +266,14 @@ export async function syncSheetData(accessToken: string, spreadsheetId: string, 
     // (Note: `update` API using Range will overwrite only the specified range, 
     // but to handle deletion of rows properly, clearing first is safer, or just overwrite with large range and clear trailing)
 
-    // Clear existing content (excluding header row if we wanted, but we'll clear all and write all)
+    // Clear existing content
     await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A1:Z:clear`,
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName + '!A1:Z1000')}:clear`,
         {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
             }
         }
     );
